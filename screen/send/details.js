@@ -500,6 +500,7 @@ export default class SendDetails extends Component {
         ]
       : [{ key: 'current', fee: requestedSatPerByte }];
 
+    const timers = []
     for (const opt of options) {
       let targets = [];
       for (const transaction of this.state.addresses) {
@@ -531,6 +532,7 @@ export default class SendDetails extends Component {
       let flag = false;
       while (true) {
         try {
+          const startTime = new Date();
           const { fee } = wallet.createTransaction(
             wallet.getUtxo(),
             targets,
@@ -538,11 +540,12 @@ export default class SendDetails extends Component {
             changeAddress,
             this.state.isTransactionReplaceable ? HDSegwitBech32Wallet.defaultRBFSequence : HDSegwitBech32Wallet.finalRBFSequence,
           );
+          timers.push(new Date() - startTime)
 
           feePrecalc[opt.key] = fee;
           break;
         } catch (e) {
-          if (e.message === 'Not enough balance. Try sending smaller amount' && !flag) {
+          if (e.message.includes('Not enough') && !flag) {
             flag = true;
             // if the outputs are too big, replace them with dust
             targets = targets.map(t => ({ ...t, value: 546 }));
@@ -555,7 +558,7 @@ export default class SendDetails extends Component {
       }
     }
 
-    this.setState({ feePrecalc });
+    this.setState({ feePrecalc, timers });
   };
 
   async createPsbtTransaction() {
@@ -1147,6 +1150,7 @@ export default class SendDetails extends Component {
               {this.renderCreateButton()}
               {this.renderFeeSelectionModal()}
               {this.renderAdvancedTransactionOptionsModal()}
+              {this.state.timers && this.state.timers.map((t, i) => <View key={i}><Text>{t}</Text></View>)}
             </KeyboardAvoidingView>
           </View>
           <BlueDismissKeyboardInputAccessory />
